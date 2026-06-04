@@ -104,6 +104,7 @@ public class NewEntryView extends BaseDialog<BibEntry> {
     @FXML private Tab tabLookupIdentifier;
     @FXML private Tab tabInterpretCitations;
     @FXML private Tab tabSpecifyBibtex;
+    @FXML private Tab tabLookupUrl;
 
     @FXML private TitledPane entryRecommendedTitle;
     @FXML private TilePane entryRecommended;
@@ -122,6 +123,11 @@ public class NewEntryView extends BaseDialog<BibEntry> {
     @FXML private ComboBox<IdBasedFetcher> idFetcher;
     @FXML private Label idErrorInvalidText;
     @FXML private Label idErrorInvalidFetcher;
+
+    // URL tab
+    @FXML private TextField urlText;
+    @FXML private Tooltip urlTextTooltip;
+    @FXML private Label urlErrorInvalidText;
 
     @FXML private TextArea interpretText;
     @FXML private ComboBox<PlainCitationParserChoice> interpretParser;
@@ -206,12 +212,16 @@ public class NewEntryView extends BaseDialog<BibEntry> {
                 tabs.getSelectionModel().select(tabSpecifyBibtex);
                 switchSpecifyBibtex();
                 break;
+            case NewEntryDialogTab.ENTER_URL:
+                tabs.getSelectionModel().select(tabLookupUrl);
+                switchLookupUrl();
         }
 
         tabAddEntry.setOnSelectionChanged(_ -> switchAddEntry());
         tabLookupIdentifier.setOnSelectionChanged(_ -> switchLookupIdentifier());
         tabInterpretCitations.setOnSelectionChanged(_ -> switchInterpretCitations());
         tabSpecifyBibtex.setOnSelectionChanged(_ -> switchSpecifyBibtex());
+        tabLookupUrl.setOnSelectionChanged(_ -> switchLookupUrl());
     }
 
     @FXML
@@ -234,6 +244,7 @@ public class NewEntryView extends BaseDialog<BibEntry> {
         initializeLookupIdentifier();
         initializeInterpretCitations();
         initializeSpecifyBibTeX();
+        initializeLookupUrl();
     }
 
     private void initializeAddEntry() {
@@ -400,6 +411,19 @@ public class NewEntryView extends BaseDialog<BibEntry> {
         }
     }
 
+    private void initializeLookupUrl() {
+        urlText.textProperty().bindBidirectional(viewModel.urlTextProperty());
+
+        final String clipboardText = ClipBoardManager.getContents().trim();
+        if (!StringUtil.isBlank(clipboardText)) {
+            urlText.setText(clipboardText);
+            urlText.selectAll();
+        }
+
+        urlErrorInvalidText.visibleProperty().bind(viewModel.urlTextValidatorProperty().not());
+        urlErrorInvalidText.managedProperty().bind(viewModel.urlTextValidatorProperty().not());
+    }
+
     @FXML
     private void switchAddEntry() {
         if (!tabAddEntry.isSelected()) {
@@ -474,6 +498,25 @@ public class NewEntryView extends BaseDialog<BibEntry> {
         }
     }
 
+    @FXML
+    private void switchLookupUrl() {
+        if (!tabLookupUrl.isSelected()) {
+            return;
+        }
+
+        currentApproach = NewEntryDialogTab.ENTER_URL;
+        newEntryPreferences.setLatestApproach(NewEntryDialogTab.ENTER_URL);
+
+        if (urlText != null) {
+            Platform.runLater(() -> urlText.requestFocus());
+        }
+
+        if (generateButton != null) {
+            generateButton.disableProperty().bind(urlErrorInvalidText.visibleProperty());
+            generateButton.setText(Localization.lang("Generate"));
+        }
+    }
+
     private void onEntryTypeSelected(EntryType type) {
         newEntryPreferences.setLatestImmediateType(type);
         result = new BibEntry(type);
@@ -508,6 +551,11 @@ public class NewEntryView extends BaseDialog<BibEntry> {
                 generateButton.setText(Localization.lang("Parsing..."));
                 viewModel.executeSpecifyBibtex();
                 switchSpecifyBibtex();
+                break;
+            case NewEntryDialogTab.ENTER_URL:
+                generateButton.setText(Localization.lang("Searching..."));
+                viewModel.executeLookupUrl();
+                switchLookupUrl();
                 break;
         }
     }
